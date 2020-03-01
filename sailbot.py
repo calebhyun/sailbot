@@ -1,4 +1,43 @@
 import math
+import py_qmc5883l
+from time import sleep
+from gps import *
+import time
+import RPi.GPIO as GPIO
+import time
+GPIO.setmode(GPIO.BOARD)
+GPIO.setup(32, GPIO.OUT)
+GPIO.setup(36, GPIO.OUT)
+GPIO.setup(38, GPIO.OUT)
+long1 = -122.4652
+lat1 = 47.358435
+tolerancelat = .0001
+toleranellong = .0001
+#houselat = 47.342257833 	
+#houselong = -122.326749667 	
+
+gpsd = gps(mode=WATCH_ENABLE|WATCH_NEWSTYLE) 
+sensor = py_qmc5883l.QMC5883L()
+def goLeft():
+    print("LEFT")
+    GPIO.output(32, GPIO.HIGH)
+    GPIO.output(36, GPIO.LOW)
+def goRight():
+    print("RIGHT")
+    GPIO.output(32, GPIO.LOW)
+    GPIO.output(36, GPIO.HIGH)
+def goStraight():
+    print("RIGHT")
+    GPIO.output(32, GPIO.HIGH)
+    GPIO.output(36, GPIO.HIGH)
+def goForwards():
+    print("Forwards")
+    GPIO.output(38, GPIO.LOW)
+def stop():
+    GPIO.output(38, GPIO.HIGH)
+def atTarget(pointA, pointB):
+    float(getattr(report,'lon',0.0) - long1 < tolerancelong
+    float(getattr(report,'lat',0.0)) - lat < tolerancelat
 def calculate_initial_compass_bearing(pointA, pointB):
     """
     Calculates the bearing between two points.
@@ -36,14 +75,27 @@ def calculate_initial_compass_bearing(pointA, pointB):
     compass_bearing = (initial_bearing + 360) % 360
 
     return compass_bearing
-print(calculate_initial_compass_bearing((10,5), (0,1)))
-projectedHeading = (calculate_initial_compass_bearing((0,1), (10,5)))
-heading = whateverthecompasssays
-necessarychange = projectedHeading-heading
-while necessarychange <360:
-  if abs(necessarychange) < 10:
-    goForward()
-  elif necessarychange >= 10:
-    turnLeft(untilheadingequalszero)
-  elif necessarychange <= -10:
-    turnRight(untilheadingequalszero)
+
+goForwards()
+while atTarget == False:
+    m = sensor.get_magnet()
+    report = gpsd.next()
+    if report['class'] == 'TPV':    
+        heading = sensor.get_bearing()
+        projectedHeading = (calculate_initial_compass_bearing((long1,lat1), ((float(getattr(report,'lon',0.0))),float(getattr(report,'lat',0.0)))))
+        necessarychange = projectedHeading-heading
+        
+        
+        #print(projectedHeading)
+        #print(heading)
+        #print(necessarychange)      
+        if necessarychange >= 10:
+            goLeft()
+        elif necessarychange <= -10:
+            goRight()
+        else:
+            goStraight()
+stop()
+
+
+
