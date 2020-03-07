@@ -9,15 +9,36 @@ GPIO.setmode(GPIO.BOARD)
 GPIO.setup(32, GPIO.OUT)
 GPIO.setup(36, GPIO.OUT)
 GPIO.setup(38, GPIO.OUT)
-long1 = -122.4652
-lat1 = 47.358435
-tolerancelat = .0001
-toleranellong = .0001
+#Tahlequah Vashon Island
+#Tahlequah Vashon Island
+long1 = -122.516422
+lat1 = 47.355398
+tolerancelat = .00001
+toleranellong = .00001
 #houselat = 47.342257833 	
 #houselong = -122.326749667 	
-
 gpsd = gps(mode=WATCH_ENABLE|WATCH_NEWSTYLE) 
 sensor = py_qmc5883l.QMC5883L()
+sensor.calibration = [[1.00579223e+00, -9.69727879e-03, -8.50240184e+02],  [-9.69727879e-03, 1.01623506e+00, -1.77743179e+03],  [0.00000000e+00, 0.00000000e+00, 1.00000000e+00]]
+sensor.declination = 15.5
+
+f = open("data.dat", "w")
+def calculate_correct_bearing(currentbearing):
+    newbearing = currentbearing+50
+    if (type(currentbearing) != float):
+        raise TypeError("Only floats are supported as arguments")
+    else:
+        
+        newbearing = 360-currentbearing-45 
+        
+        if newbearing >= 360:
+            newbearing = newbearing-360
+        
+        elif newbearing < 0:
+            newbearing += 360 
+    return newbearing
+
+
 def goLeft():
     print("LEFT")
     GPIO.output(32, GPIO.HIGH)
@@ -27,17 +48,15 @@ def goRight():
     GPIO.output(32, GPIO.LOW)
     GPIO.output(36, GPIO.HIGH)
 def goStraight():
-    print("RIGHT")
+    print("STRAIGHT")
     GPIO.output(32, GPIO.HIGH)
     GPIO.output(36, GPIO.HIGH)
 def goForwards():
-    print("Forwards")
-    GPIO.output(38, GPIO.LOW)
+    #GPIO.output(38, GPIO.LOW)
+    print("forwards")
 def stop():
     GPIO.output(38, GPIO.HIGH)
-def atTarget(pointA, pointB):
-    float(getattr(report,'lon',0.0) - long1 < tolerancelong
-    float(getattr(report,'lat',0.0)) - lat < tolerancelat
+
 def calculate_initial_compass_bearing(pointA, pointB):
     """
     Calculates the bearing between two points.
@@ -76,26 +95,65 @@ def calculate_initial_compass_bearing(pointA, pointB):
 
     return compass_bearing
 
-goForwards()
-while atTarget == False:
-    m = sensor.get_magnet()
+def atTarget(pointA, pointB):
+    if abs(pointA[0]-pointB[0]) < tolerancelat and abs(pointA[1]-pointB[1]) < tolerancelong:
+        return True
+    else:
+        return False
+
+m = sensor.get_magnet()
+report = gpsd.next()
+while report['class'] != 'TPV':
+    report = gpsd.next()
+    if report['class'] == 'TPV':
+        cur_long = float(getattr(report,'lon',0.0))
+        cur_lat = float(getattr(report,'lat',0.0))
+heading = 0
+starttime = time.time()
+while atTarget((lat1,long1), (cur_lat, cur_long)) == False:
+    try:
+        m = sensor.get_magnet()
+    except:
+        print("error magnet")
+        continue
     report = gpsd.next()
     if report['class'] == 'TPV':    
-        heading = sensor.get_bearing()
-        projectedHeading = (calculate_initial_compass_bearing((long1,lat1), ((float(getattr(report,'lon',0.0))),float(getattr(report,'lat',0.0)))))
-        necessarychange = projectedHeading-heading
+        goForwards()
+        try:
+            heading = sensor.get_bearing()
+        except:
+            print("problem with bearing")
+            continue
         
+        adjustedheading = calculate_correct_bearing(heading)
         
-        #print(projectedHeading)
-        #print(heading)
-        #print(necessarychange)      
+        cur_long = float(getattr(report,'lon',0.0))
+        cur_lat = float(getattr(report,'lat',0.0))
+        
+        projectedHeading = calculate_initial_compass_bearing((cur_lat,cur_long), (lat1, long1))
+        necessarychange = projectedHeading-adjustedheading
+        print(projectedHeading, adjustedheading, necessarychange)
+        
+        f.write(str(round(starttime - time.time(), 3)))
+        f.write(" seconds into testing.")
+
         if necessarychange >= 10:
             goLeft()
+            f.write("We need to turn left. We need to be going at " + str(projectedHeading) + ", our current heading is " + str(heading) + ", and therefore the change we need to make is more than 10 degrees, or " + str(necessarychange)+"\n")
+            #f.write("text/n")
         elif necessarychange <= -10:
             goRight()
+            f.write("We need to turn right. We need to be going at " + str(projectedHeading) + ", our current heading is " + str(heading) + ", and therefore the change we need to make is more than 10 degrees, or " + str(necessarychange)+"\n") 
+            #f.write(" text/n")
         else:
             goStraight()
+            f.write("We should be going straight. We need to be going at " + str(projectedHeading) + ", our current heading is " + str(heading) + ", and therefore the change we need to make is less than 10 degrees, or " + str(necessarychange)+"\n") 
+            #f.write("text/n")
+        time.sleep(.2)
+        stop()
+        time.sleep(.1)
 stop()
+f.close()
 
 
 
