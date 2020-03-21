@@ -4,29 +4,51 @@ from time import sleep
 from gps import *
 import time
 import RPi.GPIO as GPIO
-import time
-import datetime
-dt = datetime.datetime.today()
+import threading
+
 GPIO.setmode(GPIO.BOARD)
 GPIO.setup(32, GPIO.OUT)
 GPIO.setup(36, GPIO.OUT)
 GPIO.setup(38, GPIO.OUT)
-#Tahlequah Vashon Island
+
 #Tahlequah Vashon Island
 #long1 = -122.516422
 #lat1 = 47.355398
-long1 = -122.314953
-lat1 = 47.335799
-tolerancelat = .00001
-toleranellong = .00001
-#houselat = 47.342257833 	
-#houselong = -122.326749667 	
-gpsd = gps(mode=WATCH_ENABLE|WATCH_NEWSTYLE) 
+
+#sac field
+#long1 = -122.314953
+#lat1 = 47.335799
+
+#sac Parking Log
+#long1 = -122.317131
+#lat1 = 47.334774
+
+#TJ corner field by red building
+#long1 = -122.279001
+#lat1 = 47.345857
+
+#sac baseball field homeplate
+long1 =-122.314747
+lat1 = 47.335092
+
+#home
+#long1 = -122.326768
+#lat1 = 47.342301
+
+tolerancelat = .0001
+tolerancelong = .00003
+#houselat = 47.342257833        
+#houselong = -122.326749667     
+gpsd = gps(mode=WATCH_ENABLE|WATCH_NEWSTYLE)
+
 sensor = py_qmc5883l.QMC5883L()
 sensor.calibration = [[1.00579223e+00, -9.69727879e-03, -8.50240184e+02],  [-9.69727879e-03, 1.01623506e+00, -1.77743179e+03],  [0.00000000e+00, 0.00000000e+00, 1.00000000e+00]]
 sensor.declination = 15.5
 
-f = open("data.dat", "w")
+used = False
+
+f = open("bearings.dat", "w")
+g = open("coordinates.dat", "w")
 def calculate_correct_bearing(currentbearing):
     newbearing = currentbearing+50
     if (type(currentbearing) != float):
@@ -42,7 +64,6 @@ def calculate_correct_bearing(currentbearing):
             newbearing += 360 
     return newbearing
 
-g = open("data/test-coordinates"+dt.isoformat()+".dat", "w+")
 
 def goLeft():
     print("LEFT")
@@ -106,6 +127,27 @@ def atTarget(pointA, pointB):
     else:
         return False
 
+def steering():
+    global used, cur_long, cur_lat
+    if used!=True:
+        used = True
+        report = gpsd.next()
+        print("after gpsd")
+        if report['class'] == 'TPV':
+            print("TPV\n")
+            cur_long = float(getattr(report,'lon',0.0))
+            cur_lat = float(getattr(report,'lat',0.0))
+        
+            try:
+                heading = sensor.get_bearing()
+                #heading = 100.0
+            except:
+                print("problem with bearing")
+                
+            adjustedheading = calculate_correct_bearing(heading)
+            projectedHeading = calculate_initial_compass_bearing((cur_lat,cur_long), (lat1, long1))
+        used = False
+
 m = sensor.get_magnet()
 report = gpsd.next()
 while report['class'] != 'TPV':
@@ -113,51 +155,116 @@ while report['class'] != 'TPV':
     if report['class'] == 'TPV':
         cur_long = float(getattr(report,'lon',0.0))
         cur_lat = float(getattr(report,'lat',0.0))
-heading = 0
+heading = 0.0
 starttime = time.time()
+m = sensor.get_magnet()
 while atTarget((lat1,long1), (cur_lat, cur_long)) == False:
-    try:
-        m = sensor.get_magnet()
-    except:
-        print("error magnet")
-        continue
-    report = gpsd.next()
-    if report['class'] == 'TPV':    
-        goForwards()
-        try:
-            heading = sensor.get_bearing()
-        except:
-            print("problem with bearing")
-            continue
-        
-        adjustedheading = calculate_correct_bearing(heading)
-        
-        cur_long = float(getattr(report,'lon',0.0))
-        cur_lat = float(getattr(report,'lat',0.0))
-        
-        projectedHeading = calculate_initial_compass_bearing((cur_lat,cur_long), (lat1, long1))
-        necessarychange = projectedHeading-adjustedheading
-        print(projectedHeading, adjustedheading, necessarychange)
-        
-        f.write(str(round(starttime - time.time(), 3)))
-        f.write(" seconds into testing.")
-        g.write(str(cur_long) + ", " + str(cur_lat))
-        if necessarychange >= 10:
-            goLeft()
-            f.write("We need to turn left. We need to be going at " + str(projectedHeading) + ", our current heading is " + str(heading) + ", and therefore the change we need to make is more than 10 degrees, or " + str(necessarychange)+"\n")
-            #f.write("text/n")
-        elif necessarychange <= -10:
-            goRight()
-            f.write("We need to turn right. We need to be going at " + str(projectedHeading) + ", our current heading is " + str(heading) + ", and therefore the change we need to make is more than 10 degrees, or " + str(necessarychange)+"\n") 
-            #f.write(" text/n")
-        else:
-            goStraight()
-            f.write("We should be going straight. We need to be going at " + str(projectedHeading) + ", our current heading is " + str(heading) + ", and therefore the change we need to make is less than 10 degrees, or " + str(necessarychange)+"\n") 
-            #f.write("text/n")
-        time.sleep(.2)
-        stop()
-        time.sleep(.1)
-stop()
-f.close()
+    #try:
+    #except:
+        #print("error magnet")
+        #continue
+    
+    x = threading.Thread(target= steering, args = ())
+    x.start()
+    
+    
+    goForwards()
+    time.sleep(.1)
+    stop()
+    time.sleep(.1)
 
+stop()
+print("we're here!")
+f.close()
+g.close()
+
+
+Last login: Sat Mar 21 10:25:44 on ttys000
+(base) Calebs-Mac:~ caleb_hyun$ ssh -l pi 192.168.1.54
+pi@192.168.1.54's password: 
+Permission denied, please try again.
+pi@192.168.1.54's password: 
+Permission denied, please try again.
+pi@192.168.1.54's password: 
+Linux raspberrypi 4.9.59-v7+ #1047 SMP Sun Oct 29 12:19:23 GMT 2017 armv7l
+
+The programs included with the Debian GNU/Linux system are free software;
+the exact distribution terms for each program are described in the
+individual files in /usr/share/doc/*/copyright.
+
+Debian GNU/Linux comes with ABSOLUTELY NO WARRANTY, to the extent
+permitted by applicable law.
+Last login: Sat Mar 21 17:27:01 2020 from 192.168.1.43
+
+SSH is enabled and the default password for the 'pi' user has not been changed.
+This is a security risk - please login as the 'pi' user and type 'passwd' to set a new password.
+
+pi@raspberrypi:~ $ cd Desktop
+pi@raspberrypi:~/Desktop $ python3 sailbotv4.py
+forwards
+after gpsd
+forwards
+after gpsd
+TPV
+
+forwards
+forwards
+forwards
+after gpsd
+TPV
+
+forwards
+forwards
+after gpsd
+after gpsd
+forwards
+TPV
+
+forwards
+forwards
+after gpsd
+TPV
+
+forwards
+forwards
+after gpsd
+after gpsd
+forwards
+TPV
+
+forwards
+forwards
+after gpsd
+TPV
+
+forwards
+forwards
+after gpsd
+after gpsd
+forwards
+TPV
+
+forwards
+forwards
+after gpsd
+TPV
+
+forwards
+forwards
+after gpsd
+after gpsd
+forwards
+TPV
+
+forwards
+forwards
+after gpsd
+TPV
+
+forwards
+forwards
+after gpsd
+after gpsd
+forwards
+TPV
 

@@ -28,6 +28,7 @@ try:
             print(getattr(report,'lon',0.0),"\t")
             print(time.time())
             
+        #time.sleep(.2) 
+ 
 except (KeyboardInterrupt, SystemExit): #when you press ctrl+c
     print("Done.\nExiting.")
-

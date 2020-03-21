@@ -5,18 +5,14 @@ from gps import *
 import time
 import RPi.GPIO as GPIO
 import time
-import datetime
-dt = datetime.datetime.today()
 GPIO.setmode(GPIO.BOARD)
 GPIO.setup(32, GPIO.OUT)
 GPIO.setup(36, GPIO.OUT)
 GPIO.setup(38, GPIO.OUT)
 #Tahlequah Vashon Island
 #Tahlequah Vashon Island
-#long1 = -122.516422
-#lat1 = 47.355398
-long1 = -122.314953
-lat1 = 47.335799
+long1 = -122.516422
+lat1 = 47.355398
 tolerancelat = .00001
 toleranellong = .00001
 #houselat = 47.342257833 	
@@ -41,8 +37,146 @@ def calculate_correct_bearing(currentbearing):
         elif newbearing < 0:
             newbearing += 360 
     return newbearing
+Last login: Sat Mar 21 10:25:44 on ttys000
+(base) Calebs-Mac:~ caleb_hyun$ ssh -l pi 192.168.1.54
+pi@192.168.1.54's password: 
+Permission denied, please try again.
+pi@192.168.1.54's password: 
+Permission denied, please try again.
+pi@192.168.1.54's password: 
+Linux raspberrypi 4.9.59-v7+ #1047 SMP Sun Oct 29 12:19:23 GMT 2017 armv7l
 
-g = open("data/test-coordinates"+dt.isoformat()+".dat", "w+")
+The programs included with the Debian GNU/Linux system are free software;
+the exact distribution terms for each program are described in the
+individual files in /usr/share/doc/*/copyright.
+
+Debian GNU/Linux comes with ABSOLUTELY NO WARRANTY, to the extent
+permitted by applicable law.
+Last login: Sat Mar 21 17:27:01 2020 from 192.168.1.43
+
+SSH is enabled and the default password for the 'pi' user has not been changed.
+This is a security risk - please login as the 'pi' user and type 'passwd' to set a new password.
+
+pi@raspberrypi:~ $ cd Desktop
+pi@raspberrypi:~/Desktop $ python3 sailbotv4.py
+forwards
+after gpsd
+forwards
+after gpsd
+TPV
+
+forwards
+forwards
+forwards
+after gpsd
+TPV
+
+forwards
+forwards
+after gpsd
+after gpsd
+forwards
+TPV
+
+forwards
+forwards
+after gpsd
+TPV
+
+forwards
+forwards
+after gpsd
+after gpsd
+forwards
+TPV
+
+forwards
+forwards
+after gpsd
+TPV
+
+forwards
+forwards
+after gpsd
+after gpsd
+forwards
+TPV
+
+forwards
+forwards
+after gpsd
+TPV
+
+forwards
+forwards
+after gpsd
+after gpsd
+forwards
+TPV
+
+forwards
+forwards
+after gpsd
+TPV
+
+forwards
+forwards
+after gpsd
+after gpsd
+forwards
+TPV
+
+forwards
+forwards
+after gpsd
+TPV
+
+forwards
+forwards
+after gpsd
+after gpsd
+forwards
+TPV
+
+forwards
+forwards
+after gpsd
+TPV
+
+forwards
+after gpsd
+after gpsd
+forwards
+after gpsd
+forwards
+TPV
+
+forwards
+forwards
+after gpsd
+TPV
+
+forwards
+forwards
+after gpsd
+after gpsd
+forwards
+TPV
+
+forwards
+forwards
+after gpsd
+TPV
+
+forwards
+after gpsd
+after gpsd
+forwards
+TPV
+
+forwards
+forwards
+
 
 def goLeft():
     print("LEFT")
@@ -57,7 +191,7 @@ def goStraight():
     GPIO.output(32, GPIO.HIGH)
     GPIO.output(36, GPIO.HIGH)
 def goForwards():
-    GPIO.output(38, GPIO.LOW)
+    #GPIO.output(38, GPIO.LOW)
     print("forwards")
 def stop():
     GPIO.output(38, GPIO.HIGH)
@@ -141,7 +275,7 @@ while atTarget((lat1,long1), (cur_lat, cur_long)) == False:
         
         f.write(str(round(starttime - time.time(), 3)))
         f.write(" seconds into testing.")
-        g.write(str(cur_long) + ", " + str(cur_lat))
+
         if necessarychange >= 10:
             goLeft()
             f.write("We need to turn left. We need to be going at " + str(projectedHeading) + ", our current heading is " + str(heading) + ", and therefore the change we need to make is more than 10 degrees, or " + str(necessarychange)+"\n")

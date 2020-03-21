@@ -5,18 +5,14 @@ from gps import *
 import time
 import RPi.GPIO as GPIO
 import time
-import datetime
-dt = datetime.datetime.today()
 GPIO.setmode(GPIO.BOARD)
 GPIO.setup(32, GPIO.OUT)
 GPIO.setup(36, GPIO.OUT)
 GPIO.setup(38, GPIO.OUT)
 #Tahlequah Vashon Island
 #Tahlequah Vashon Island
-#long1 = -122.516422
-#lat1 = 47.355398
-long1 = -122.314953
-lat1 = 47.335799
+long1 = -122.516422
+lat1 = 47.355398
 tolerancelat = .00001
 toleranellong = .00001
 #houselat = 47.342257833 	
@@ -42,7 +38,6 @@ def calculate_correct_bearing(currentbearing):
             newbearing += 360 
     return newbearing
 
-g = open("data/test-coordinates"+dt.isoformat()+".dat", "w+")
 
 def goLeft():
     print("LEFT")
@@ -57,7 +52,7 @@ def goStraight():
     GPIO.output(32, GPIO.HIGH)
     GPIO.output(36, GPIO.HIGH)
 def goForwards():
-    GPIO.output(38, GPIO.LOW)
+    #GPIO.output(38, GPIO.LOW)
     print("forwards")
 def stop():
     GPIO.output(38, GPIO.HIGH)
@@ -141,7 +136,60 @@ while atTarget((lat1,long1), (cur_lat, cur_long)) == False:
         
         f.write(str(round(starttime - time.time(), 3)))
         f.write(" seconds into testing.")
-        g.write(str(cur_long) + ", " + str(cur_lat))
+	f.write("\n")
+	f.write(cur_lat, cur_long)
+	
+-0.244 seconds into testing.We need to turn right. We need to be going at 30.432
+471090103604, our current heading is 106.32948293281495, and therefore the chang
+e we need to make is more than 10 degrees, or -178.23804597708144
+-1.11 seconds into testing.We need to turn left. We need to be going at 30.38219
+7275240287, our current heading is 99.83492557849627, and therefore the change w
+e need to make is more than 10 degrees, or 175.21712285373656
+-1.686 seconds into testing.We need to turn left. We need to be going at 30.3839
+0595223069, our current heading is 96.78438981937765, and therefore the change w
+e need to make is more than 10 degrees, or 172.16829577160837
+-2.169 seconds into testing.We need to turn left. We need to be going at 30.8725
+26149713337, our current heading is 57.80433233497168, and therefore the change 
+we need to make is more than 10 degrees, or 133.676858484685
+-2.746 seconds into testing.We need to turn left. We need to be going at 30.8671
+5786001173, our current heading is 352.35735086399245, and therefore the change 
+we need to make is more than 10 degrees, or 68.22450872400418
+-3.228 seconds into testing.We should be going straight. We need to be going at 
+32.35452607501088, our current heading is 280.5046721898856, and therefore the c
+hange we need to make is less than 10 degrees, or -2.140801735103537
+-3.805 seconds into testing.We need to turn right. We need to be going at 32.354
+67701703158, our current heading is 247.19483217071615, and therefore the change
+ we need to make is more than 10 degrees, or -35.45049081225227
+-4.477 seconds into testing.We need to turn right. We need to be going at 32.678
+18414383413, our current heading is 270.72112363106805, and therefore the change
+ we need to make is more than 10 degrees, or -11.600692225097816
+-5.251 seconds into testing.We need to turn left. We need to be going at 32.6735
+9227855661, our current heading is 333.3099067817487, and therefore the change w
+e need to make is more than 10 degrees, or 50.98349906030529
+-5.733 seconds into testing.We need to turn left. We need to be going at 33.7308
+79128976426, our current heading is 337.71734512594213, and therefore the change
+ we need to make is more than 10 degrees, or 56.44822425491856
+-6.31 seconds into testing.We need to turn right. We need to be going at 33.7363
+99643566926, our current heading is 240.5749126078021, and therefore the change 
+we need to make is more than 10 degrees, or -40.68868774863097
+-6.792 seconds into testing.We need to turn right. We need to be going at 35.919
+86722764739, our current heading is 223.10456126594497, and therefore the change
+ we need to make is more than 10 degrees, or -55.97557150640765
+-7.36 seconds into testing.We need to turn right. We need to be going at 35.9002
+199514166, our current heading is 268.67349937999484, and therefore the change w
+e need to make is more than 10 degrees, or -10.42628066858856
+-7.843 seconds into testing.We need to turn left. We need to be going at 36.2243
+5377423233, our current heading is 316.8746900938596, and therefore the change w
+e need to make is more than 10 degrees, or 38.09904386809194
+-8.43 seconds into testing.We need to turn left. We need to be going at 36.22112
+940358238, our current heading is 310.85680143862317, and therefore the change w
+e need to make is more than 10 degrees, or 32.07793084220555
+-8.912 seconds into testing.We need to turn right. We need to be going at 37.415
+47266481223, our current heading is 239.28036828167234, and therefore the change
+ we need to make is more than 10 degrees, or -38.304159053515434
+-9.768 seconds into testing.We need to turn right. We need to be going at 38.519
+14631302509, our current heading is 251.63970604416608, and therefore the change
+
         if necessarychange >= 10:
             goLeft()
             f.write("We need to turn left. We need to be going at " + str(projectedHeading) + ", our current heading is " + str(heading) + ", and therefore the change we need to make is more than 10 degrees, or " + str(necessarychange)+"\n")

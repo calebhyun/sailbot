@@ -14,6 +14,26 @@ toleranellong = .00001
 #houselong = -122.326749667 	
 gpsd = gps(mode=WATCH_ENABLE|WATCH_NEWSTYLE) 
 sensor = py_qmc5883l.QMC5883L()
+sensor.calibration = [[1.013535132361361, -0.008522647106776193, -1016.2116244340472],[-0.008522647106776138, 1.005366442807312, -1293.387118453363], [0.0, 0.0, 1.0]]
+sensor.declination = 15.5
+
+
+f = open("data.dat", "w")
+def calculate_correct_bearing(currentbearing):
+    newbearing = currentbearing+50
+    if (type(currentbearing) != float):
+        raise TypeError("Only floats are supported as arguments")
+    else:
+        
+        newbearing = currentbearing+50
+        
+        if newbearing >= 360:
+            newbearing = newbearing-360
+        
+        elif newbearing < 0:
+            newbearing += 360 
+    return newbearing
+
 
 def calculate_initial_compass_bearing(pointA, pointB):
     """
@@ -71,31 +91,41 @@ while report['class'] != 'TPV':
         cur_long = float(getattr(report,'lon',0.0))
         cur_lat = float(getattr(report,'lat',0.0))
 
-
+starttime = time.time()
 print(atTarget((lat1,long1), (cur_lat, cur_long))) 
 while atTarget((lat1,long1), (cur_lat, cur_long)) == False:
+#for x in range(0,10):
     m = sensor.get_magnet()
     report = gpsd.next()
     if report['class'] == 'TPV':    
         heading = sensor.get_bearing()
+        adjustedheading = calculate_correct_bearing(heading)
+        print(adjustedheading, heading)
+        print(adjustedheading)
         cur_long = float(getattr(report,'lon',0.0))
         cur_lat = float(getattr(report,'lat',0.0))
         projectedHeading = calculate_initial_compass_bearing((cur_lat,cur_long), (lat1, long1))
-        necessarychange = projectedHeading-heading
-        print(projectedHeading, heading, necessarychange)
-        
+        necessarychange = projectedHeading-adjustedheading
+        print(projectedHeading, adjustedheading, necessarychange)
+        f.write(str(round(starttime - time.time(), 3)))
+        f.write(" seconds into testing.")
         #print(projectedHeading)
         #print(heading)
         #print(necessarychange)      
         if necessarychange >= 10:
             print("goLeft()")
+            f.write("We need to turn left. We need to be going at" + str(projectedHeading) + ", our current heading is" + str(adjustedheading) + ", and therefore the change we need to make is more than 10 degrees -" + str(necessarychange)+"\n")
+            #f.write("text/n")
         elif necessarychange <= -10:
             print("goRight()")
+            f.write("We need to turn right. We need to be going at" + str(projectedHeading) + ", our current heading is" + str(adjustedheading) + ", and therefore the change we need to make is more than 10 degrees -" + str(necessarychange)+"\n") 
+            #f.write(" text/n")
         else:
             print("goStraight()")
+            f.write("We should be going straight. We need to be going at" + str(projectedHeading) + ", our current heading is" + str(adjustedheading) + ", and therefore the change we need to make is less than 10 degrees -" + str(necessarychange)+"\n") 
+            #f.write("text/n")
         time.sleep(.1)
         #stop()
         time.sleep(.1)
-
-
+f.close()
 

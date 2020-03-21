@@ -5,6 +5,8 @@ from gps import *
 import time
 import RPi.GPIO as GPIO
 import threading
+import datetime
+dt = datetime.datetime.today()
 
 GPIO.setmode(GPIO.BOARD)
 GPIO.setup(32, GPIO.OUT)
@@ -16,8 +18,8 @@ GPIO.setup(38, GPIO.OUT)
 #lat1 = 47.355398
 
 #sac field
-#long1 = -122.314953
-#lat1 = 47.335799
+long1 = -122.314953
+lat1 = 47.335799
 
 #sac Parking Log
 #long1 = -122.317131
@@ -28,8 +30,8 @@ GPIO.setup(38, GPIO.OUT)
 #lat1 = 47.345857
 
 #sac baseball field homeplate
-long1 =-122.314747
-lat1 = 47.335092
+#long1 =-122.314747
+#lat1 = 47.335092
 
 #home
 #long1 = -122.326768
@@ -37,8 +39,8 @@ lat1 = 47.335092
 
 tolerancelat = .0001
 tolerancelong = .00003
-#houselat = 47.342257833        
-#houselong = -122.326749667     
+#houselat = 47.342257833 	
+#houselong = -122.326749667 	
 gpsd = gps(mode=WATCH_ENABLE|WATCH_NEWSTYLE)
 
 sensor = py_qmc5883l.QMC5883L()
@@ -47,8 +49,8 @@ sensor.declination = 15.5
 
 used = False
 
-f = open("bearings.dat", "w")
-g = open("coordinates.dat", "w")
+f = open("data/test-compass"+dt.isoformat() + ".dat", "w+")
+g = open("data/test-coordinates"+dt.isoformat()+".dat", "w+")
 def calculate_correct_bearing(currentbearing):
     newbearing = currentbearing+50
     if (type(currentbearing) != float):
@@ -116,7 +118,7 @@ def calculate_initial_compass_bearing(pointA, pointB):
     # Now we have the initial bearing but math.atan2 return values
     # from -180° to + 180° which is not what we want for a compass bearing
     # The solution is to normalize the initial bearing as shown below
-       initial_bearing = math.degrees(initial_bearing)
+    initial_bearing = math.degrees(initial_bearing)
     compass_bearing = (initial_bearing + 360) % 360
 
     return compass_bearing
@@ -146,71 +148,38 @@ def steering():
                 
             adjustedheading = calculate_correct_bearing(heading)
             projectedHeading = calculate_initial_compass_bearing((cur_lat,cur_long), (lat1, long1))
-            Last login: Thu Mar 19 13:53:23 on ttys000
-(base) Calebs-Mac:~ caleb_hyun$ ssh -l pi 192.168.43.175
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-ssh: connect to host 192.168.43.175 port 22: Connection refused
-(base) Calebs-Mac:~ caleb_hyun$ 
-(base) Calebs-Mac:~ caleb_hyun$ 
-(base) Calebs-Mac:~ caleb_hyun$ 
-(base) Calebs-Mac:~ caleb_hyun$ 
-(base) Calebs-Mac:~ caleb_hyun$ 
-(base) Calebs-Mac:~ caleb_hyun$ 
-(base) Calebs-Mac:~ caleb_hyun$ 
-(base) Calebs-Mac:~ caleb_hyun$ 
-(base) Calebs-Mac:~ caleb_hyun$ 
-(base) Calebs-Mac:~ caleb_hyun$ 
-(base) Calebs-Mac:~ caleb_hyun$ 
-(base) Calebs-Mac:~ caleb_hyun$ 
-(base) Calebs-Mac:~ caleb_hyun$ 
-(base) Calebs-Mac:~ caleb_hyun$ 
-(base) Calebs-Mac:~ caleb_hyun$ 
-(base) Calebs-Mac:~ caleb_hyun$ 
-(base) Calebs-Mac:~ caleb_hyun$ 
-(base) Calebs-Mac:~ caleb_hyun$ 
-(base) Calebs-Mac:~ caleb_hyun$ 
-(base) Calebs-Mac:~ caleb_hyun$ ssh -l pi 192.168.1.54
-pi@192.168.1.54's password: 
-Linux raspberrypi 4.9.59-v7+ #1047 SMP Sun Oct 29 12:19:23 GMT 2017 armv7l
-
-The programs included with the Debian GNU/Linux system are free software;
-the exact distribution terms for each program are described in the
-individual files in /usr/share/doc/*/copyright.
-
-Debian GNU/Linux comes with ABSOLUTELY NO WARRANTY, to the extent
-permitted by applicable law.
-Last login: Fri Mar 20 09:36:12 2020
-
-SSH is enabled and the default password for the 'pi' user has not been changed.
-This is a security risk - please login as the 'pi' user and type 'passwd' to set a new password.
-
-pi@raspberrypi:~ $ cd Desktop
-pi@raspberrypi:~/Desktop $ sudo nano sailbotv3.py
-
-
-
-
-
-  GNU nano 2.7.4                                                                                File: sailbotv3.py                                                                                Modified  
-
+            necessarychange = projectedHeading-adjustedheading
+            
+            if necessarychange <= -180:
+                necessarychange += 360
+                
+            if necessarychange >= 180:
+                necessarychange -= 360
+            
+            
+            print(projectedHeading, adjustedheading, necessarychange)
+            
+            f.write(str(round(starttime - time.time(), 3)))
+            f.write(" seconds into testing.")
+            f.write("\n")
+            g.write(str(cur_lat))
+            g.write(", ")
+            g.write(str(cur_long))
+            g.write("\n")
+            if necessarychange >= 10:
+                goLeft()
+                f.write("We need to turn left. We need to be going at " + str(projectedHeading) + ", our current heading is " + str(heading) + ", and therefore the change we need to make is more than 10 degrees, or " + str(necessarychange)+"\n")
+            elif necessarychange <= -10:
+                goRight()
+                f.write("We need to turn right. We need to be going at " + str(projectedHeading) + ", our current heading is " + str(heading) + ", and therefore the change we need to make is more than 10 degrees, or " + str(necessarychange)+"\n") 
+            else:
+                goStraight()
+                f.write("We should be going straight. We need to be going at " + str(projectedHeading) + ", our current heading is " + str(heading) + ", and therefore the change we need to make is less than 10 degrees, or " + str(necessarychange)+"\n") 
+            time.sleep(.3)
+            goStraight()
+        else:
+            print("NO TPV\n")
+            goStraight()
         
         used = False
 
@@ -243,4 +212,5 @@ stop()
 print("we're here!")
 f.close()
 g.close()
+
 
