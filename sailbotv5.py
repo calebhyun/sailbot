@@ -42,8 +42,8 @@ GPIO.setup(38, GPIO.OUT)
 #long1 = -122.326768
 #lat1 = 47.342301
 
-tolerancelat = .0001
-tolerancelong = .00003
+tolerancelat = .0002
+tolerancelong = .0002
 #houselat = 47.342257833 	
 #houselong = -122.326749667 	
 gpsd = gps(mode=WATCH_ENABLE|WATCH_NEWSTYLE)
@@ -56,6 +56,7 @@ used = False
 
 f = open("data/test-compass"+dt.isoformat() + ".dat", "w+")
 g = open("data/test-coordinates"+dt.isoformat()+".dat", "w+")
+c = open("data/cvsfile"+dt.isoformat()+".dat", "w+")
 def calculate_correct_bearing(currentbearing):
     newbearing = currentbearing+50
     if (type(currentbearing) != float):
@@ -73,20 +74,20 @@ def calculate_correct_bearing(currentbearing):
 
 
 def goLeft():
-    print("LEFT")
-    GPIO.output(32, GPIO.HIGH)
-    GPIO.output(36, GPIO.LOW)
-def goRight():
     print("RIGHT")
     GPIO.output(32, GPIO.LOW)
     GPIO.output(36, GPIO.HIGH)
+def goRight():
+    print("LEFT")
+    GPIO.output(32, GPIO.HIGH)
+    GPIO.output(36, GPIO.LOW)
 def goStraight():
     print("STRAIGHT")
     GPIO.output(32, GPIO.HIGH)
     GPIO.output(36, GPIO.HIGH)
 def goForwards():
     GPIO.output(38, GPIO.LOW)
-    print("forwards")
+    #print("forwards")
 def stop():
     GPIO.output(38, GPIO.HIGH)
 
@@ -136,21 +137,23 @@ def atTarget(pointA, pointB):
 
 def steering():
     global used, cur_long, cur_lat, extra_turn
+    #print("in thread!")
     if used!=True:
+        print("being used")
         used = True
         report = gpsd.next()
-        print("after gpsd")
         if report['class'] == 'TPV':
-            print("TPV\n")
             cur_long = float(getattr(report,'lon',0.0))
             cur_lat = float(getattr(report,'lat',0.0))
-        
+            print(cur_lat, cur_long)
+            #print(long1-cur_long)
+            #print(lat1-cur_lat)
             try:
                 heading = sensor.get_bearing()
                 #heading = 100.0
             except:
                 print("problem with bearing")
-                
+            heading = sensor.get_bearing()
             adjustedheading = calculate_correct_bearing(heading)
             projectedHeading = calculate_initial_compass_bearing((cur_lat,cur_long), (lat1, long1))
             necessarychange = projectedHeading-adjustedheading
@@ -162,11 +165,17 @@ def steering():
                 necessarychange -= 360
             
             
-            print(projectedHeading, adjustedheading, necessarychange)
+
             
             f.write(str(round(starttime - time.time(), 3)))
             f.write(" seconds into testing.")
             f.write("\n")
+            g.write(str(round(starttime - time.time(), 3)))
+            g.write("\n desination:")
+            g.write(str(lat1))
+            g.write(", ")
+            g.write(str(long1))
+            g.write("\n")
             g.write(str(cur_lat))
             g.write(", ")
             g.write(str(cur_long))
@@ -184,10 +193,10 @@ def steering():
             else:
                 goStraight()
                 f.write("We should be going straight. We need to be going at " + str(projectedHeading) + ", our current heading is " + str(heading) + ", and therefore the change we need to make is less than 10 degrees, or " + str(necessarychange)+"\n") 
-            time.sleep(.1+abs(necessarychange/45))
+            #time.sleep(.1+abs(necessarychange/45))
+            time.sleep(.3)
             goStraight()
         else:
-            print("NO TPV\n")
             goStraight()
         
         used = False
@@ -203,23 +212,19 @@ heading = 0.0
 starttime = time.time()
 m = sensor.get_magnet()
 
-c = open("multiplecoordinates.dat", "r")
+c = open("coordinates-nautilus-jarvis.dat", "r")
 coordinates_array=[]
 coords = c.readline()
 while coords:
     coordinates_array.append(coords.split())
     coords = c.readline()
-print(coordinates_array)
 num_of_coordinates = len(coordinates_array)
-print(num_of_coordinates)
-print("b4")
-for x in range(0, num_of_coordinates):
-    print("after")
-    array = coordinates_array[x]
-    lat1 = float(array[0])
-    long1 = float(array[1])
-    print(lat1)
-    print(long1)
+#print(num_of_coordinates)
+for y in range(0, num_of_coordinates):
+    both_coordinates = coordinates_array[y]
+    #print("y:", y, " coordinates:", both_coordinates)
+    lat1 = float(both_coordinates[0])
+    long1 = float(both_coordinates[1])
     while atTarget((lat1,long1), (cur_lat, cur_long)) == False:
         #try:
         #except:
@@ -229,16 +234,21 @@ for x in range(0, num_of_coordinates):
         x = threading.Thread(target= steering, args = ())
         x.start()
         
-        
+        #print("waypoint:", lat1, long1, " current position:", cur_lat, cur_long)
         goForwards()
         time.sleep(.1)
         stop()
-        time.sleep(.1)
+        time.sleep(.5)
 
+        #print(cur_lat, cur_long)
+    time.sleep(1)
     stop()
-    print("we're here!")
-    f.close()
-    g.close()
+    point = y+1
+    print("we made it to point", point)
+    
+f.close()
+g.close()
+
 
 
 
