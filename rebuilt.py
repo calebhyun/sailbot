@@ -34,10 +34,16 @@ def goStraight():
     GPIO.output(32, GPIO.HIGH)
     GPIO.output(36, GPIO.HIGH)
 
+def goForwards():
+    #GPIO.output(38, GPIO.LOW)
+    print("\n")
+def stop():
+    GPIO.output(38, GPIO.HIGH)
+
 gpsd = gps(mode=WATCH_ENABLE|WATCH_NEWSTYLE)
 
 sensor = py_qmc5883l.QMC5883L()
-sensor.calibration =[[  1.01118128,  -0.00166141846, -1072.98632],[ -0.0166141846,  1.02468689, -2337.03825],[  0.0,  0.0,  1.0]]
+sensor.calibration = [[1.008642685908187, -0.018113795061251714, -986.4874670799933], [-0.01811379506125177, 1.0379638430699203, -2530.648381550675], [0.0, 0.0, 1.0]]
 sensor.declination = 15.5
 
 used = False
@@ -91,26 +97,6 @@ def steering():
     if used!=True:
         print("being used")
         used = True
-        report = gpsd.next()
-        
-
-def bearing_fix(heading):
-    
-    correct_bearing = 360 - heading
-    correct_bearing = correct_bearing - 95
-    
-    if correct_bearing > 360:
-        correct_bearing -= 360
-    elif correct_bearing < 0:
-        correct_bearing += 360
-    
-    return correct_bearing
-lat1 = 0.00019 #47.34211
-long1 = -0.00019 #-122.32705
-
-report = gpsd.next()
-
-while True:
         report = gpsd.next() #
         if report['class'] == 'TPV':
             cur_lat = getattr(report,'lat',0.0)
@@ -126,21 +112,70 @@ while True:
             
             necessary_change = projected_bearing - heading
             print("necessary change: ", necessary_change)
-            
-            if atTarget((cur_lat, cur_long), (lat1, long1)) == True:
-                print("at Target")
-                break
-            elif necessary_change > 10:
+            	
+            if necessary_change <= -180:
+                necessary_change += 360
+                
+            elif necessary_change >= 180:
+                necessary_change -= 360
+            print("necessarychange changed")
+
+            if necessary_change > 5:
                 goRight()
-                time.sleep(.4)
+                time.sleep(.2)
                 goStraight()
-            elif necessary_change < -10:
+            elif necessary_change < -5:
                 goLeft()
-                time.sleep(.4)
+                time.sleep(.2)
                 goStraight()
             else:
                 goStraight()
+        print("steering done")
+        used = False
+
+def bearing_fix(heading):
+    correct_bearing = heading
+    if correct_bearing > 360:
+        correct_bearing -= 360
+    elif correct_bearing < 0:
+        correct_bearing += 360
+    
+    return correct_bearing
+lat1 = 0.00029 #47.34211
+long1 = -0.00019 #-122.32705
+
+report = gpsd.next()
+while report['class'] != 'TPV':
+    report = gpsd.next()
+    if report['class'] == 'TPV':
+        #SWITCHED AROUND FOR TESTING PURPOSES
+        cur_long = float(getattr(report,'lon',0.0))
+        cur_lat = float(getattr(report,'lat',0.0))
+c = open("coordinates-nautilus-jarvis.dat", "r")
+coordinates_array=[]
+coords = c.readline()
+while coords:
+    coordinates_array.append(coords.split())
+    coords = c.readline()
+num_of_coordinates = len(coordinates_array)
+
+for y in range(0, num_of_coordinates):
+    both_coordinates = coordinates_array[y]
+    print("point \#", y+1, "coordinates:", both_coordinates)
+    #Switched these
+    lat1 = float(both_coordinates[1])
+    long1 = float(both_coordinates[0])
+    while atTarget((cur_lat, cur_long), (lat1, long1)) == False:
+        x = threading.Thread(target= steering, args = ())
+        x.start()
+        
+        print("waypoint:", lat1, long1, " current position:", cur_lat, cur_long)
+        
+        goForwards()
+        time.sleep(.1)
+        stop()
+        time.sleep(.5)
                   
                   
                   
-                  
+
